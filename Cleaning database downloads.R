@@ -4,7 +4,9 @@ library(stringr)
 library(dplyr)
 library(data.table)
 
-df.corrupt <- read.csv("input.txt", fileEncoding = "UTF-16", sep="\t", header = TRUE) # load data
+# read in data. Using fread allows much faster loading of large datasets and can define subset of at load to reduce memory load.
+df.corrupt <- fread("input.txt", 
+              select = c("scientificName", "scientificNameAuthorship", "namePublishedIn", "taxonomicStatus"))
 
 
 ### ------ Fix offset columns and flag missing values ------ ###
