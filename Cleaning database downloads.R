@@ -1,3 +1,6 @@
+# tools already exist for cleaning data and text, eg: https://www.rdocumentation.org/packages/textclean/versions/0.9.3
+# however given the particular issues encountered addressing plant collection data bespoke code was simpler.
+
 library(stringr)
 library(data.table)
 library(stringr)
