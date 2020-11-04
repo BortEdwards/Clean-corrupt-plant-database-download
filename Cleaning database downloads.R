@@ -1,16 +1,17 @@
 # tools already exist for cleaning data and text, eg: https://www.rdocumentation.org/packages/textclean/versions/0.9.3
-# however given the particular issues encountered addressing plant collection data bespoke code was simpler.
+# however given the particular issues encountered addressing plant collection data bespoke code was can be required.
+# This code addresses some very specific problems to data extracted from the Global Compositae Database (2018) however many of these tools can be easily adapted to other problematic datasets
+# NB encoding system can horribly confuse this process. In this case take care to check correct recognition of input, conversion to and subsequent use of, UTF8
 
 library(stringr)
 library(data.table)
 library(stringr)
 library(dplyr)
 library(data.table)
+library(utf8)
 
-# read in data. Using fread allows much faster loading of large datasets and can define subset of at load to reduce memory load.
-df.corrupt <- fread("input.txt", 
-              select = c("scientificName", "scientificNameAuthorship", "namePublishedIn", "taxonomicStatus"))
-
+setwd("/Users/vicki/Dropbox (Smithsonian)/Yale/Comps")
+df.corrupt <- fread("WORKING Global Comps Master SpreadsheetUTF8.txt", quote="")
 
 ### ------ Fix offset columns and flag missing values ------ ###
 
@@ -29,9 +30,9 @@ df.corrupt[Status == "FLAG" & AcceptedName != "NULL", NameFull := paste(NameFull
 
 # Populate column ("Status") contingent on the value of other cells:
 df.corrupt[Status == "Accepted", AcceptedName := NameFull]
-df.corrupt[Status == "Synonym" & AcceptedName == "", AcceptedName := "FLAG"]
+df.corrupt[Status == "Synonym" & AcceptedName == "", AcceptedName := "FLAG"] # FLAG is to denote records where synonym is missing and cannot be inferred
 df.corrupt[Status == "Unknown", AcceptedName := "NULL"]
-df.corrupt[Status == "FLAG" & !AcceptedName %in% c("FLAG", "NULL"), AcceptedName := "FLAG"]
+df.corrupt[Status == "FLAG" & !AcceptedName %in% c("FLAG", "NULL"), AcceptedName := "FLAG"] # FLAG is to denote records where Accepted Name is missing
 
 # return data table to dataframe format
 setDF(df.corrupt) #return data table to dataframe format
@@ -64,7 +65,9 @@ write.csv(df.author.hits,'corrupt.authority.entries.txt', fileEncoding = "UTF-16
 
 # To fix corrupted authority names you can either provide a list of each individual corrupted word/name and it's corrected version, each in quotes separated by a comma. NB special characters (eg "?" need to be escaped: "\?")
 # An alternative if you are confident each corrupt character corresponds to a single "correct" character is to parse a list like above but just for each character.
-list_gsub <- read.csv("conversion.list.txt", fileEncoding = "UTF-16",sep=",", header = TRUE) #this is the comma delimited look-up table - first column "corrupted" is the corrupt name (in quotes) and a corresponding entry in second column "clean" is the clean version. 
+list_gsub <- read.csv("conversion.listUTF16.txt", fileEncoding = "UTF-16",sep=",", header = TRUE) #this is a *UTF16 ENCODED* comma delimited look-up table - first column "corrupted" is the corrupt name (in quotes) and a corresponding entry in second column "clean" is the clean version. 
+list_gsub$clean <- as_utf8(list_gsub$clean) # convert utf16-8 using utf8 package - this removes external code conversion issues
+list_gsub$corrupted <- as_utf8(list_gsub$corrupted)
 
 # For unknown reasons my corrupt dataset has replaced "á" with non-breaking spaces. Replace using  unicode designation for non-breakingspace.                                                      
 df.clean <- df.corrupt
@@ -80,6 +83,8 @@ for(x in 1:nrow(list_gsub))
   df.clean$AcceptedName <- gsub(list_gsub[x,"corrupted"],list_gsub[x,"clean"], df.clean$AcceptedName)
 
 #It is worth running the "clean" dataframe back through the above "df.corrupt <- df.clean" to check errors or overlooked characters.
+
+write.table(df.clean,'WORKING Global Comps Master Spreadsheet CLEAN.txt', sep="\t", quote=FALSE, row.names = FALSE) # output corrupt records
 
 
 ### ------ Options ------ ### 
@@ -117,7 +122,7 @@ corrupted,clean
 
 ### ------ Toy corrupt dataset ------ ###
 
-df.corrupt <- data.frame(
+#df.corrupt <- data.frame(
   'NameId' = c('350-8D6A','BC2-85E2','426-C0FA','615-8E09','651-8D6F','DE8-3D0F','2B6-D039','5E9-EE00','38F-75E4','B02-FBBC','B7A-821E','95A-B349','A8C-4A7B','3F6-90A1'),
   'Tribe' = c('Heliantheae','Heliantheae','Cichorieae','Cichorieae','Cichorieae','Senecioneae','Vernonieae','Tageteae','Vernonieae','Vernonieae','Millerieae','Inuleae','Astereae','Cardueae'),
   'NameFull' = c('Wedelia mexicana (Sch.Bip.) McVaugh','Wedelia modesta Baker','Youngia multiflora (Thunb.) DC.','Youngia napifera DC. ex Wight','Scorzonera mucida Rech.f. Aellen & Esfand.','Senecio hualtaranensis Petenatti Ariza & Del Vitto','Baccharoides tolypophora (Mattf.) Isawumi El-Ghazaly & B.Nord.','Bajacalia crassifolia (S.Watson) Loockerman B.L.Turner & R.K.Jansen','Vernonia westermanii Ekman & Dusen','Vernonia westiniana Less.','Oteiza scandens Panero Villaseeor & Medina','Pulicaria hesperia Maire Weiller & Wilczek','Aster chusanensis Y.S.Lim','Cheirolophus mansanetianus Stubing'),
